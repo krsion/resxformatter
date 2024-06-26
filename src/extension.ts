@@ -1,26 +1,56 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import * as xml2js from 'xml2js';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+class HTMLDocumentFormatter implements vscode.DocumentFormattingEditProvider {
+  public async provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions): Promise<vscode.TextEdit[]> {
+    const parser = new xml2js.Parser();
+    const builder = new xml2js.Builder({ headless: true, renderOpts: { pretty: true, indent: options.insertSpaces ? ' '.repeat(options.tabSize) : '\t', newline: '\r\n' } });
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "resxformatter" is now active!');
+    return parser.parseStringPromise(document.getText())
+      .then(json => {
+        // Manipulate JSON object as needed
+        // Example: Sorting elements by a specific attribute
+        // Assuming json structure is correct and has elements array
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('resxformatter', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello VS Code from ResxFormatter!');
-	});
+        // Convert JSON back to XML
+        if (json.root.data.length > 1) {
+          json.root.data.sort((a: any, b: any) => {
+            const aKey = a['$']['name'];
+            const bKey = b['$']['name'];
 
-	context.subscriptions.push(disposable);
+            return aKey.localeCompare(bKey);
+          });
+        }
+
+        var x = json;
+
+
+
+        const xml = builder.buildObject(json);
+
+        // Create a range covering the entire document
+        const range = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+
+        // Return the formatted XML as a TextEdit operation
+        return [new vscode.TextEdit(range, xml)];
+      })
+      .catch(error => {
+        console.error('Failed to parse XML:', error);
+        vscode.window.showErrorMessage('Failed to parse XML: ' + error.message);
+        return [];
+      });
+  }
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function activate(context: vscode.ExtensionContext) {
+  const formatter = new HTMLDocumentFormatter();
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentFormattingEditProvider(
+      { language: "xml", scheme: "file", pattern: "**/*.resx" },
+      formatter
+    )
+  );
+}
+
+export function deactivate() { }
