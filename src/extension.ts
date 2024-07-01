@@ -11,7 +11,6 @@ class HTMLDocumentFormatter implements vscode.DocumentFormattingEditProvider {
       normalize: true,
     });
     const builder = new xml2js.Builder({
-      headless: true,
       renderOpts: {
         pretty: true,
         indent: options.insertSpaces ? ' '.repeat(options.tabSize) : '\t', 
